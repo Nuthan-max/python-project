@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RescueRoute — Emergency Geospatial Intelligence &amp; Dispatch</title>
+  
+  <!-- Premium Typography: Inter, Manrope, IBM Plex Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  
+  <!-- Lucide Icons (Enterprise Consistent Outlined Icon System) -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='20261112-2') }}" />
+  
+  <!-- Brand Favicon SVG -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FF5364' stroke-width='2.2'><polygon points='3 11 22 2 13 21 11 13 3 11'/></svg>" />
+</head>
+<body class="app-viewport is-starting" data-basemap="streets">
+
+  <!-- ================= 0. BRANDED LOADING SCREEN SEQUENCE ================= -->
+  <div class="app-loader" id="app-loader" aria-label="Starting RescueRoute">
+    <div class="loader-brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5364" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19.5 4.5 13.2 20l-2.8-6.1-6.3-2.8L19.5 4.5Z"/>
+        </svg>
+      </div>
+      <span class="brand-name">Rescue<b>Route</b></span>
+    </div>
+    <div class="loader-bar">
+      <div class="loader-progress"></div>
+    </div>
+    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#667085; letter-spacing:0.04em;">
+      INITIALIZING RESCUEROUTE INTELLIGENCE…
+    </div>
+  </div>
+
+  <!-- ================= 1. PRIMARY FULL-SCREEN MAP ================= -->
+  <div id="map" class="map-canvas" aria-label="Delhi Emergency Geospatial Map"></div>
+
+  <!-- ================= 2. EXECUTIVE TOP NAVIGATION ================= -->
+  <header class="app-nav" role="banner">
+    <!-- Luxury Brand Identity -->
+    <div class="nav-brand parallax-depth" role="img" aria-label="RescueRoute, Delhi operations" title="RescueRoute — Delhi operations">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5364" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19.5 4.5 13.2 20l-2.8-6.1-6.3-2.8L19.5 4.5Z"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Segmented Navigation Pill -->
+    <nav class="nav-pills glass-navigation glass-dynamic" role="tablist" aria-label="Application workspaces">
+      <span class="nav-indicator" aria-hidden="true"></span>
+      <button class="nav-pill active magnetic" data-tab="dispatch" id="tab-btn-dispatch" role="tab" aria-selected="true" title="Emergency dispatch and vehicle coordination (Alt+D)">
+        <i data-lucide="navigation" style="width:14px; height:14px;"></i>
+        <span>Dispatch</span>
+      </button>
+      <button class="nav-pill magnetic" data-tab="traffic" id="tab-btn-traffic" role="tab" aria-selected="false" title="Traffic conditions and road disruptions (Alt+T)">
+        <i data-lucide="alert-triangle" style="width:14px; height:14px;"></i>
+        <span>Traffic &amp; Incidents</span>
+      </button>
+      <button class="nav-pill magnetic" data-tab="analytics" id="tab-btn-analytics" role="tab" aria-selected="false" title="Algorithmic benchmarks & performance (Alt+A)">
+        <i data-lucide="bar-chart-2" style="width:14px; height:14px;"></i>
+        <span>Analytics</span>
+      </button>
+      <button class="nav-pill magnetic" data-tab="history" id="tab-btn-history" role="tab" aria-selected="false" title="Mission audit logs & history (Alt+H)">
+        <i data-lucide="history" style="width:14px; height:14px;"></i>
+        <span>History</span>
+      </button>
+      <button class="nav-pill magnetic" data-tab="system" id="tab-btn-system" role="tab" aria-selected="false" title="System architecture and data disclosure">
+        <i data-lucide="cpu" style="width:14px; height:14px;"></i>
+        <span>System</span>
+      </button>
+    </nav>
+
+    <!-- Operational Telemetry Indicators (Bloomberg Terminal Quality) -->
+    <div class="nav-status">
+      <div class="status-indicator online" id="chip-engine" title="Flask Routing Engine Status">
+        <span class="pulse-beacon"></span>
+        <span>Engine <b>online</b></span>
+      </div>
+      <div class="status-indicator" id="chip-gps" title="GPS Satellites / Smartphone Tracking">
+        <span class="pulse-beacon gps-live"></span>
+        <span>GPS <b>Ready</b></span>
+      </div>
+      <div class="status-indicator" id="chip-live-feed" title="Data Feed Mode">Mode <b>Simulated</b></div>
+      <div class="status-indicator" id="chip-network" title="Delhi Road Network (OSMnx)">Network <b>—</b></div>
+      <div class="status-indicator" id="chip-missions" title="Active Missions">Missions <b>0</b></div>
+      <div class="status-indicator" id="chip-incidents" title="Active Road Closures">Incidents <b>0</b></div>
+      
+      <!-- Audio Notification Toggle -->
+      <button class="btn-icon-pill" id="btn-toggle-sound" title="Toggle audio alert cues for emergency dispatch and rerouting">
+        <i data-lucide="volume-2" id="icon-sound" style="width:14px; height:14px; color:var(--accent-primary);"></i>
+        <span class="sound-label">Audio On</span>
+      </button>
+
+      <a href="/driver" target="_blank" class="btn-icon-pill" style="text-decoration:none; color:var(--accent-primary); border-color:rgba(101,191,255,0.35); display:inline-flex; align-items:center; gap:6px;" title="Open Smartphone GPS Driver Portal in a new tab or on phone">
+        <i data-lucide="smartphone" style="width:14px; height:14px;"></i>
+        <span>Driver GPS</span>
+      </a>
+      <button class="btn-icon-pill" id="btn-toggle-basemap" title="Switch between MapTiler Streets and Dark Geospatial Basemap">
+        <i data-lucide="layers" style="width:14px; height:14px;"></i>
+        <span class="basemap-label">Streets</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= 3. FLOATING MAP INTERACTION TOOLBAR ================= -->
+  <div class="floating-mode-bar parallax-depth" role="toolbar" aria-label="Map Interaction Modes">
+    <div class="segmented-control glass-toolbar glass-dynamic" id="mode-toggle">
+      <button data-mode="emergency" class="active" title="Click anywhere on map to set emergency incident (E)">
+        <i data-lucide="crosshair" style="width:14px; height:14px;"></i>
+        <span>Emergency</span>
+      </button>
+      <button data-mode="ambulance" title="Click on map to deploy an ambulance unit (U)">
+        <i data-lucide="truck" style="width:14px; height:14px;"></i>
+        <span>Ambulance</span>
+      </button>
+      <button data-mode="block" title="Click any road segment to simulate a disruption (B)">
+        <i data-lucide="shield-alert" style="width:14px; height:14px;"></i>
+        <span>Block Road</span>
+      </button>
+    </div>
+    <div class="mode-caption" id="map-badge">Emergency mode — click map to designate incident location</div>
+  </div>
+
+  <!-- ================= 4. CONTEXTUAL SLIDE-OUT PANEL (COLLAPSIBLE DRAWER) ================= -->
+  <aside class="contextual-panel glass-panel glass-dynamic" id="sidebar-panel" aria-label="Operations Panel">
+    <div class="panel-header">
+      <div class="panel-heading-wrap">
+        <h2 id="sidebar-heading">Dispatch</h2>
+        <p class="panel-sub sidebar-sub" hidden>Step-by-step emergency routing and vehicle coordination</p>
+      </div>
+      <button class="btn-close" id="btn-close-sidebar" title="Collapse panel (Alt+C or Esc)" aria-label="Close panel">
+        <i data-lucide="x" style="width:15px; height:15px;"></i>
+      </button>
+    </div>
+
+    <div class="panel-scroll-body">
+      <!-- ---------------- TAB A: DISPATCH WORKSPACE ---------------- -->
+      <section class="workspace-section panel active" id="tab-dispatch">
+        <!-- Active Trip Summary Pill (Visible during live mission) -->
+        <div class="active-mission-summary" id="active-mission-summary" hidden>
+          <div class="summary-info">
+            <div class="summary-route">
+              <span id="sum-emergency">Incident</span>
+              <span class="summary-arrow">➔</span>
+              <span id="sum-hospital">Hospital</span>
+            </div>
+          </div>
+          <button class="btn-summary-toggle" id="btn-toggle-setup" aria-expanded="false" title="Show or edit dispatch parameters">
+            <i data-lucide="chevron-down" style="width:12px; height:12px;"></i>
+            <span>Edit</span>
+          </button>
+        </div>
+
+        <!-- Dispatch Setup Steps -->
+        <div class="dispatch-setup-wrap" id="dispatch-setup-wrap">
+          <!-- Incident location -->
+          <div class="workflow-card">
+            <div class="card-head">
+              <div class="card-titles">
+                <h3>Incident</h3>
+              </div>
+            </div>
+            <div class="preset-chips" id="emergency-presets"></div>
+            <div class="location-status" id="emergency-coord">
+              <i data-lucide="map-pin" style="width:13px; height:13px; flex-shrink:0;"></i>
+              <span>Pick a map location or preset</span>
+            </div>
+          </div>
+
+          <!-- Ambulance deployment -->
+          <div class="workflow-card">
+            <div class="card-head">
+              <div class="card-titles">
+                <h3>Ambulance</h3>
+              </div>
+            </div>
+            <div class="field-stack">
+              <select id="ambulance-select" class="form-select" aria-label="Select Ambulance Unit"></select>
+              <button class="btn-action-ghost" id="btn-add-ambulance" title="Place an ambulance at the map centre">
+                <i data-lucide="plus-circle" style="width:14px; height:14px;"></i>
+                <span>Add ambulance</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Hospital destination -->
+          <div class="workflow-card">
+            <div class="card-head">
+              <div class="card-titles">
+                <h3>Hospital</h3>
+              </div>
+            </div>
+            <div class="field-row">
+              <select id="hospital-select" class="form-select" aria-label="Select Hospital Destination">
+                <option value="">Choose hospital…</option>
+              </select>
+              <button class="btn-icon-square" id="btn-refresh-hospitals" title="Refresh nearby hospitals" aria-label="Refresh nearby hospitals">
+                <i data-lucide="rotate-cw" style="width:14px; height:14px;"></i>
+              </button>
+            </div>
+            <div class="facility-preview" id="hospital-card" hidden></div>
+          </div>
+
+          <!-- Route calculation -->
+          <div class="workflow-card">
+            <div class="card-head">
+              <div class="card-titles">
+                <h3>Route</h3>
+              </div>
+            </div>
+            <div class="segmented-control pill-full" id="algo-toggle">
+              <button data-algo="astar" class="active" title="A* route search">A*</button>
+              <button data-algo="dijkstra" title="Dijkstra route search">Dijkstra</button>
+            </div>
+            <button class="btn-dispatch-primary magnetic" id="btn-plan">
+              <span>Calculate &amp; dispatch</span>
+              <i data-lucide="chevron-right" style="width:15px; height:15px;"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 5: Active Mission Telemetry (Contextual Live Tracker) -->
+        <div class="workflow-card live-mission-card" id="mission-panel" hidden>
+          <div class="card-head">
+            <span class="live-dot-pulse"></span>
+            <div class="card-titles">
+              <h3>Live mission</h3>
+            </div>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi-cell">
+              <span class="kpi-label">Status</span>
+              <strong class="kpi-val" id="m-status">—</strong>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-label">Phase</span>
+              <strong class="kpi-val" id="m-leg">—</strong>
+            </div>
+            <div class="kpi-cell accent">
+              <span class="kpi-label">ETA</span>
+              <strong class="kpi-val text-accent" id="m-eta">—</strong>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-label">Distance left</span>
+              <strong class="kpi-val" id="m-remaining">—</strong>
+            </div>
+          </div>
+          <div class="mission-controls">
+            <button class="btn-action-ghost" id="btn-pause" aria-label="Pause or resume mission">Pause</button>
+            <button class="btn-action-danger" id="btn-abort" aria-label="Abort mission">Abort</button>
+          </div>
+          <details class="event-stream-box" id="mission-events" hidden>
+            <summary class="stream-header">Events</summary>
+            <ol class="stream-events" id="m-events"></ol>
+          </details>
+        </div>
+      </section>
+
+      <!-- ---------------- TAB B: TRAFFIC & ROAD DISRUPTIONS ---------------- -->
+      <section class="workspace-section panel" id="tab-traffic">
+        <div class="workflow-card">
+          <div class="card-head">
+            <div class="disruption-badge-icon">
+              <i data-lucide="shield-alert" style="width:16px; height:16px;"></i>
+            </div>
+            <div class="card-titles">
+              <h3>Simulate Road Disruption</h3>
+              <p>In <b>Block Road</b> mode, click any street to close it or introduce congestion. Active missions reroute dynamically.</p>
+            </div>
+          </div>
+          <div class="field-grid-2">
+            <label class="form-label">
+              <span>Disruption Type</span>
+              <select id="incident-kind" class="form-select">
+                <option value="closure">Road Closure</option>
+                <option value="accident">Accident</option>
+                <option value="traffic">Traffic Congestion</option>
+              </select>
+            </label>
+            <label class="form-label">
+              <span>Severity Level</span>
+              <select id="incident-level" class="form-select">
+                <option value="closed">Closed (Inaccessible)</option>
+                <option value="jam">Gridlock (4.0× cost)</option>
+                <option value="heavy">Heavy (2.5× cost)</option>
+                <option value="moderate">Moderate (1.5× cost)</option>
+              </select>
+            </label>
+          </div>
+          <input id="incident-label" type="text" class="form-input" placeholder="Incident label / reason (e.g. Waterlogging)" />
+          <div class="location-status" id="incident-segment">Click a street on the map to select segment</div>
+          <button class="btn-dispatch-primary" id="btn-create-incident" disabled>
+            <span>Create Disruption</span>
+          </button>
+        </div>
+
+        <div class="workflow-card">
+          <div class="card-head">
+            <div class="card-titles">
+              <h3>Active Road Conditions</h3>
+              <p>Currently simulated closures altering edge travel costs.</p>
+            </div>
+          </div>
+          <ul class="disruptions-list" id="incident-list"><li class="empty-muted">None active</li></ul>
+          <button class="btn-action-ghost" id="btn-reset-traffic" style="margin-top: 12px; width: 100%;">
+            Clear All Simulated Conditions
+          </button>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- ================= 5. FLOATING EXPAND TRIGGER (WHEN DRAWER COLLAPSED) ================= -->
+  <button class="btn-expand-drawer magnetic" id="btn-expand-sidebar" title="Open operations console (Alt+C)" aria-label="Open operations panel">
+    <i data-lucide="sidebar" style="width:15px; height:15px;"></i>
+    <span>Operations Console</span>
+  </button>
+
+  <!-- ================= 6. SOPHISTICATED FLOATING MAP CONTROLS ================= -->
+  <div class="floating-map-controls parallax-depth" role="group" aria-label="Map Navigation Controls">
+    <div class="control-group glass-control glass-dynamic">
+      <button class="map-ctrl-btn" id="btn-zoom-in" title="Zoom in" aria-label="Zoom in">
+        <i data-lucide="plus" style="width:16px; height:16px;"></i>
+      </button>
+      <button class="map-ctrl-btn" id="btn-zoom-out" title="Zoom out" aria-label="Zoom out">
+        <i data-lucide="minus" style="width:16px; height:16px;"></i>
+      </button>
+      <button class="map-ctrl-btn" id="btn-recenter" title="Re-center on Delhi" aria-label="Re-center map">
+        <i data-lucide="locate" style="width:16px; height:16px;"></i>
+      </button>
+    </div>
+
+    <!-- Collapsible Legend Control -->
+    <div class="legend-popover-wrap">
+      <button class="legend-toggle-btn" id="btn-toggle-legend" aria-expanded="false" aria-controls="map-legend-card" title="Toggle map route legend">
+        <i data-lucide="info" style="width:14px; height:14px;"></i>
+        <span>Legend</span>
+      </button>
+      <div class="map-legend glass-tooltip glass-dynamic" id="map-legend-card" aria-hidden="true">
+        <div class="legend-header">Road Network &amp; Routes</div>
+        <div class="legend-grid">
+          <div><i class="sw highway"></i> Arterial Road</div>
+          <div><i class="sw street"></i> Local Street</div>
+          <div><i class="sw route"></i> Active Mission Route</div>
+          <div><i class="sw original"></i> Planned Route</div>
+          <div><i class="sw closed"></i> Closed Segment</div>
+          <div><i class="sw heavy"></i> Congested Road</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 7. FLOATING TOAST NOTIFICATIONS ================= -->
+  <div class="toast-stack" id="toasts" aria-live="polite"></div>
+
+  <!-- ================= 8. DEDICATED ANALYTICS WORKSPACE (MODAL SHEET) ================= -->
+  <div class="modal-backdrop" id="modal-analytics" role="dialog" aria-modal="true" aria-labelledby="analytics-heading">
+    <div class="modal-card glass-modal glass-dynamic">
+      <div class="modal-head">
+        <div>
+          <h2 id="analytics-heading">System Analytics &amp; Routing Benchmarks</h2>
+          <p class="modal-sub">Comparative analysis of heuristic A* vs uniform-cost Dijkstra across the Delhi road network.</p>
+        </div>
+        <button class="btn-close modal-close" data-close="analytics" aria-label="Close dialog">
+          <i data-lucide="x" style="width:16px; height:16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <section class="panel" id="tab-analytics">
+          <!-- Live Analytics Visualizations (Charts Grid) -->
+          <div class="modal-section-card">
+            <h3 class="section-title">Telemetry &amp; Operational Analytics Visualizations</h3>
+            <p class="section-sub">Real-time algorithmic latency benchmarks and dynamic Delhi traffic trends.</p>
+            <div class="charts-grid">
+              <div class="chart-box">
+                <div class="chart-title">
+                  <span>Search Node Expansion (A* vs Dijkstra)</span>
+                  <i data-lucide="bar-chart" style="width:14px; height:14px; color:var(--accent-blue);"></i>
+                </div>
+                <canvas id="chart-nodes" class="chart-canvas"></canvas>
+              </div>
+              <div class="chart-box">
+                <div class="chart-title">
+                  <span>Routing Latency / Compute Time (ms)</span>
+                  <i data-lucide="trending-up" style="width:14px; height:14px; color:var(--accent-blue);"></i>
+                </div>
+                <canvas id="chart-latency" class="chart-canvas"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-section-card">
+            <h3 class="section-title">Algorithmic Benchmark Matrix</h3>
+            <p class="section-sub">Tested with identical origin, destination, and dynamic congestion cost weights.</p>
+            <div class="table-wrap">
+              <table class="bench-table" id="bench-table">
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>A* Heuristic (Admissible Euclidean)</th>
+                    <th>Dijkstra (Uniform-Cost)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="3" class="empty-muted">Dispatch an emergency mission to populate live benchmark results.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="benchmark-callout" id="bench-note" hidden></div>
+          </div>
+
+          <div class="modal-section-card">
+            <h3 class="section-title">Mission Execution Performance</h3>
+            <div class="kpi-grid" id="perf-grid">
+              <div class="kpi-cell"><span>Original Estimate</span><b>—</b></div>
+              <div class="kpi-cell"><span>After Reroutes</span><b>—</b></div>
+              <div class="kpi-cell"><span>Variance</span><b>—</b></div>
+              <div class="kpi-cell"><span>Distance</span><b>—</b></div>
+            </div>
+          </div>
+
+          <div class="modal-section-card">
+            <h3 class="section-title">Delhi Road Network Topology</h3>
+            <div class="kv-grid" id="network-kv"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 9. DEDICATED HISTORY WORKSPACE (MODAL SHEET) ================= -->
+  <div class="modal-backdrop" id="modal-history" role="dialog" aria-modal="true" aria-labelledby="history-heading">
+    <div class="modal-card glass-modal glass-dynamic">
+      <div class="modal-head">
+        <div>
+          <h2 id="history-heading">Mission Audit &amp; Operational History</h2>
+          <p class="modal-sub">Historical emergency response runs, route deviation records, and arrival variance metrics.</p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-action-ghost" id="btn-refresh-history">
+            <i data-lucide="refresh-cw" style="width:14px; height:14px;"></i>
+            <span>Refresh Audit Log</span>
+          </button>
+          <button class="btn-close modal-close" data-close="history" aria-label="Close dialog">
+            <i data-lucide="x" style="width:16px; height:16px;"></i>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <section class="panel" id="tab-history">
+          <div id="history-list"><p class="empty-muted">No completed missions recorded yet.</p></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 10. DEDICATED SYSTEM & METHODOLOGY MODAL ================= -->
+  <div class="modal-backdrop" id="modal-system" role="dialog" aria-modal="true" aria-labelledby="system-heading">
+    <div class="modal-card glass-modal glass-dynamic">
+      <div class="modal-head">
+        <div>
+          <h2 id="system-heading">System Architecture &amp; Data Transparency</h2>
+          <p class="modal-sub">Methodological boundaries, data sources, and algorithmic design specifications.</p>
+        </div>
+        <button class="btn-close modal-close" data-close="system" aria-label="Close dialog">
+          <i data-lucide="x" style="width:16px; height:16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="system-grid">
+          <div class="disclosure-card real">
+            <div class="disc-head">
+              <span class="disc-icon">✓</span>
+              <h4>Real OpenStreetMap Data</h4>
+            </div>
+            <ul>
+              <li>Delhi drivable road geometry extracted via OSMnx and cached as a NetworkX graph.</li>
+              <li>Real intersection coordinates, one-way constraints, and highway classifications.</li>
+              <li>Emergency healthcare facility locations queried from OpenStreetMap.</li>
+            </ul>
+          </div>
+          <div class="disclosure-card simulated">
+            <div class="disc-head">
+              <span class="disc-icon">⚡</span>
+              <h4>Simulated Operational Model</h4>
+            </div>
+            <ul>
+              <li>Ambulance positions and dispatch telemetry.</li>
+              <li>Dynamic traffic congestion multipliers and spontaneous road closures.</li>
+              <li>Hospital bed availability counts and trauma department capacity.</li>
+              <li>Free-flow travel speed assumptions by highway classification.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-section-card" style="margin-top: 16px;">
+          <h4 class="section-title">Routing &amp; Dynamic Rerouting Engine</h4>
+          <p class="section-sub">
+            The core engine implements bidirectional A* search with an admissible great-circle/Euclidean distance heuristic alongside uniform-cost Dijkstra.
+            When an incident or roadblock is placed on an active mission's trajectory, the mission manager detects the disruption and recalculates the optimal path in real-time.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map Configuration Data -->
+  <script id="map-config" type="application/json">
+    {{ {"center": map_center, "zoom": map_zoom, "tileUrl": tile_url, "attribution": attribution, "hasKey": has_maptiler_key, "styleId": maptiler_style}|tojson }}
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+  <script src="{{ url_for('static', filename='js/motion.js') }}"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="{{ url_for('static', filename='js/app.js', v='20261112-2') }}"></script>
+
+  <!-- Modal Management and Panel Trigger Handlers -->
+  <script>
+    (() => {
+      const panel = document.getElementById("sidebar-panel");
+      const btnClose = document.getElementById("btn-close-sidebar");
+      const btnExpand = document.getElementById("btn-expand-sidebar");
+      const modalAnalytics = document.getElementById("modal-analytics");
+      const modalHistory = document.getElementById("modal-history");
+      const modalSystem = document.getElementById("modal-system");
+
+      const togglePanel = (open) => {
+        const isCurrentlyOpen = panel.classList.contains("open");
+        const nextState = open !== undefined ? open : !isCurrentlyOpen;
+        panel.classList.toggle("open", nextState);
+        if (btnExpand) btnExpand.classList.toggle("hidden", nextState);
+        if (nextState && !isCurrentlyOpen) window.RescueMotion?.panelOpened(panel);
+      };
+
+      // By default on desktop, open the dispatch panel smoothly
+      togglePanel(true);
+
+      btnClose?.addEventListener("click", () => togglePanel(false));
+      btnExpand?.addEventListener("click", () => togglePanel(true));
+
+      const closeModals = () => {
+        modalAnalytics?.classList.remove("open");
+        modalHistory?.classList.remove("open");
+        modalSystem?.classList.remove("open");
+      };
+
+      document.querySelectorAll(".modal-close, .modal-backdrop").forEach((el) => {
+        el.addEventListener("click", (e) => {
+          if (e.target === el || el.classList.contains("modal-close")) {
+            closeModals();
+          }
+        });
+      });
+
+      const switchWorkspace = (tabName) => {
+        const next = document.getElementById(`tab-${tabName}`);
+        const current = document.querySelector("#sidebar-panel .workspace-section.active");
+        if (!next) return;
+        if (next === current) {
+          window.RescueMotion?.restoreContent(next);
+          return;
+        }
+        window.RescueMotion?.switchContent(current, next, () => {
+          document.querySelectorAll("#sidebar-panel .workspace-section").forEach((section) => {
+            section.classList.toggle("active", section === next);
+          });
+        });
+        if (!window.RescueMotion) {
+          document.querySelectorAll("#sidebar-panel .workspace-section").forEach((section) => {
+            section.classList.toggle("active", section === next);
+          });
+        }
+      };
+
+      // Navigation tab switching
+      document.querySelectorAll(".nav-pill").forEach((pill) => {
+        pill.addEventListener("click", () => {
+          const t = pill.dataset.tab;
+          window.RescueMotion?.moveNavigationIndicator(pill);
+          document.querySelectorAll(".nav-pill").forEach((p) => {
+            const isActive = p === pill;
+            p.classList.toggle("active", isActive);
+            p.setAttribute("aria-selected", isActive);
+          });
+          window.dispatchEvent(new CustomEvent("tab-selected", { detail: { tab: t } }));
+
+          // Open corresponding modal or drawer
+          if (t === "analytics") {
+            closeModals();
+            modalAnalytics?.classList.add("open");
+          } else if (t === "history") {
+            closeModals();
+            modalHistory?.classList.add("open");
+          } else if (t === "system") {
+            closeModals();
+            modalSystem?.classList.add("open");
+          } else {
+            closeModals();
+            togglePanel(true);
+            switchWorkspace(t);
+            const heading = document.getElementById("sidebar-heading");
+            const sub = document.querySelector(".sidebar-sub");
+            if (t === "dispatch") {
+              if (heading) heading.textContent = "Dispatch";
+              if (sub) sub.hidden = true;
+            } else if (t === "traffic") {
+              if (heading) heading.textContent = "Traffic & Disruption Control";
+              if (sub) {
+                sub.hidden = false;
+                sub.textContent = "Active road closures, congestion & incident triggers";
+              }
+            }
+          }
+        });
+      });
+
+      // Keyboard shortcuts: Alt+C to toggle panel, Alt+D for dispatch, Alt+T for traffic, Alt+A for analytics, Alt+H for history, Esc to close
+      window.addEventListener("keydown", (e) => {
+        if (e.altKey) {
+          const k = e.key.toLowerCase();
+          if (k === "c") { e.preventDefault(); togglePanel(); }
+          if (k === "d") { e.preventDefault(); document.getElementById("tab-btn-dispatch")?.click(); }
+          if (k === "t") { e.preventDefault(); document.getElementById("tab-btn-traffic")?.click(); }
+          if (k === "a") { e.preventDefault(); document.getElementById("tab-btn-analytics")?.click(); }
+          if (k === "h") { e.preventDefault(); document.getElementById("tab-btn-history")?.click(); }
+        }
+        if (e.key === "Escape") {
+          closeModals();
+          togglePanel(false);
+        }
+      });
+
+      // Navigation tab switching
+      const refreshIcons = () => { if (window.lucide) window.lucide.createIcons(); };
+
+      // The branded intro stays up only while the initial app data is loading.
+      const initApp = () => {
+        refreshIcons();
+        let started = false;
+        const start = () => {
+          if (started) return;
+          started = true;
+          const loader = document.getElementById("app-loader");
+          window.RescueMotion?.enter(loader);
+          if (!window.RescueMotion) {
+            if (loader) loader.classList.add("loaded");
+            document.body.classList.remove("is-starting");
+            document.body.classList.add("is-ready");
+          }
+          window.removeEventListener("rr:ready", start);
+        };
+        window.addEventListener("rr:ready", start, { once: true });
+        window.setTimeout(start, 6500);
+      };
+      if (document.readyState === "loading") {
+        window.addEventListener("DOMContentLoaded", initApp);
+      } else {
+        initApp();
+      }
+    })();
+  </script>
+</body>
+</html>

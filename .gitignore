@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+
+# Large / generated data — rebuild with scripts, do not commit
+data/cache/*.graphml
+data/cache/network.geojson
+data/*.db
+data/*.log
+data/*.png
+data/*.err.log
+
+# Keep the small, curated cache files
+!data/cache/graph_meta.json
+!data/cache/hospital_candidates.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,12 @@
+{
+  "downloaded_at": "2026-11-12T00:32:09",
+  "area": "Delhi National Capital Territory",
+  "queries": [
+    "Delhi, India"
+  ],
+  "network_type": "drive",
+  "nodes": 180328,
+  "edges": 491524,
+  "download_seconds": 628.9,
+  "source": "OpenStreetMap via OSMnx"
+}

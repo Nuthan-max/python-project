@@ -1,0 +1,16 @@
+# RescueRoute — Python dependencies
+# Install with:  pip install -r requirements.txt
+
+Flask>=3.1
+osmnx>=2.0          # OpenStreetMap road-network download / GraphML IO
+networkx>=3.4       # graph representation + algorithms
+pandas>=2.2
+numpy>=1.26
+shapely>=2.0
+geopandas>=1.0
+scikit-learn>=1.4   # required by OSMnx for nearest-node search
+requests>=2.31
+python-dotenv>=1.0
+
+# Optional:
+# uvicorn / gunicorn  -> only if you deploy beyond a local laptop demo

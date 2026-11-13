@@ -1,0 +1,13 @@
+{
+  "downloaded_at": "2026-10-30T21:37:34",
+  "area": "Central Delhi + New Delhi",
+  "queries": [
+    "New Delhi, Delhi, India",
+    "Central Delhi, Delhi, India"
+  ],
+  "network_type": "drive",
+  "nodes": 9942,
+  "edges": 25565,
+  "download_seconds": 21.1,
+  "source": "OpenStreetMap via OSMnx"
+}

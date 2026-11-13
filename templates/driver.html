@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>RescueRoute Driver — Live GPS Telemetry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #f1f5f9;
+      font-family: 'Inter', -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .card {
+      background: rgba(18, 24, 38, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      border-radius: 20px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      backdrop-filter: blur(16px);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .badge.off {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 10px currentColor;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+    p.sub {
+      color: #94a3b8;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .field {
+      text-align: left;
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+    input, select {
+      width: 100%;
+      background: #0f1523;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus {
+      border-color: #3b82f6;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+    }
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+    .btn-stop {
+      background: #dc2626;
+      color: white;
+      box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
+    }
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+      text-align: left;
+    }
+    .telemetry-box {
+      background: rgba(15, 21, 35, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 10px 12px;
+      border-radius: 8px;
+    }
+    .telemetry-box .k {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: #64748b;
+      letter-spacing: 0.5px;
+    }
+    .telemetry-box .v {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #38bdf8;
+      margin-top: 2px;
+    }
+    .note {
+      margin-top: 18px;
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="status-badge" class="badge off"><span class="dot"></span> Telemetry Offline</div>
+    <h1>Ambulance GPS Unit</h1>
+    <p class="sub">Hardware sensor stream for real-time dispatch monitoring</p>
+
+    <div class="field">
+      <label>Vehicle Identifier</label>
+      <input type="text" id="amb-id" value="AMB-001" placeholder="e.g. AMB-001">
+    </div>
+
+    <button id="btn-toggle" class="btn btn-primary" onclick="toggleGPS()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><circle cx="12" cy="12" r="3"/></svg>
+      Start Broadcasting GPS
+    </button>
+
+    <div class="telemetry-grid">
+      <div class="telemetry-box">
+        <div class="k">Latitude</div>
+        <div class="v" id="tel-lat">--</div>
+      </div>
+      <div class="telemetry-box">
+        <div class="k">Longitude</div>
+        <div class="v" id="tel-lng">--</div>
+      </div>
+      <div class="telemetry-box">
+        <div class="k">Accuracy</div>
+        <div class="v" id="tel-acc">--</div>
+      </div>
+      <div class="telemetry-box">
+        <div class="k">Updates Sent</div>
+        <div class="v" id="tel-count">0</div>
+      </div>
+    </div>
+
+    <p class="note">
+      🔒 Uses HTML5 Geolocation API from your smartphone hardware. Zero third-party tracker fees or external subscriptions.
+    </p>
+  </div>
+
+  <script>
+    let watchId = null;
+    let updateCount = 0;
+
+    function toggleGPS() {
+      if (watchId !== null) {
+        stopGPS();
+      } else {
+        startGPS();
+      }
+    }
+
+    function startGPS() {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser/device.");
+        return;
+      }
+      const ambId = document.getElementById("amb-id").value.trim() || "AMB-001";
+      document.getElementById("status-badge").className = "badge";
+      document.getElementById("status-badge").innerHTML = '<span class="dot"></span> Live Transmitting';
+      document.getElementById("btn-toggle").className = "btn btn-stop";
+      document.getElementById("btn-toggle").innerText = "Stop Broadcasting";
+
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const acc = pos.coords.accuracy;
+          const speed = pos.coords.speed;
+          const heading = pos.coords.heading;
+
+          document.getElementById("tel-lat").innerText = lat.toFixed(5);
+          document.getElementById("tel-lng").innerText = lng.toFixed(5);
+          document.getElementById("tel-acc").innerText = "±" + Math.round(acc) + "m";
+
+          // Send to RescueRoute backend
+          fetch("/api/telemetry/ambulance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ambulance_id: ambId,
+              lat: lat,
+              lng: lng,
+              accuracy: acc,
+              speed: speed,
+              heading: heading
+            })
+          })
+          .then(r => r.json())
+          .then(res => {
+            if (res.ok) {
+              updateCount++;
+              document.getElementById("tel-count").innerText = updateCount;
+            }
+          })
+          .catch(err => console.error("Telemetry transmit error:", err));
+        },
+        (err) => {
+          console.warn("GPS error:", err);
+          alert("GPS permission denied or unavailable: " + err.message);
+          stopGPS();
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+          timeout: 10000
+        }
+      );
+    }
+
+    function stopGPS() {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+      document.getElementById("status-badge").className = "badge off";
+      document.getElementById("status-badge").innerHTML = '<span class="dot"></span> Telemetry Offline';
+      const btn = document.getElementById("btn-toggle");
+      btn.className = "btn btn-primary";
+      btn.innerText = "Start Broadcasting GPS";
+    }
+  </script>
+</body>
+</html>
