@@ -303,7 +303,10 @@ class TrafficEngine:
             else:
                 self._live_traffic_status["error"] = f"TomTom API HTTP {resp.status_code}"
         except Exception as ex:
-            self._live_traffic_status["error"] = str(ex)
+            self._live_traffic_status["error"] = (
+                f"TomTom request failed ({type(ex).__name__}); "
+                "check server configuration and network access."
+            )
 
         return self._live_traffic_status
 

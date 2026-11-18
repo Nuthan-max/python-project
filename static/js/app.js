@@ -1154,6 +1154,9 @@
         } else if (s.traffic_live?.enabled && s.traffic_live.error) {
           feedChip.title = s.traffic_live.error;
           feedChip.innerHTML = `Traffic <b style="color:#b7791f">TomTom unavailable</b>`;
+        } else if (!s.traffic_live?.enabled) {
+          feedChip.title = "TomTom is not configured. Set TOMTOM_API_KEY on the server to enable live incidents; simulated traffic is active.";
+          feedChip.innerHTML = `Traffic <b style="color:#f59e0b">Simulated</b>`;
         } else if (s.live_ambulances && s.live_ambulances > 0) {
           feedChip.title = `Live GPS ambulances: ${s.live_ambulances}`;
           feedChip.innerHTML = `GPS <b style="color:#38bdf8">Live</b>`;

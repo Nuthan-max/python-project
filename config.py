@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = Path(os.getenv("RESCUEROUTE_DATA_DIR", str(BASE_DIR / "data"))).expanduser()
 CACHE_DIR = DATA_DIR / "cache"
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATE_DIR = BASE_DIR / "templates"
@@ -33,9 +33,11 @@ LEGACY_GRAPH_PATH = CACHE_DIR / "delhi_drive.graphml"
 LEGACY_GRAPH_META_PATH = CACHE_DIR / "graph_meta.json"
 FACILITIES_PATH = CACHE_DIR / "delhi_nct_hospital_candidates.json"
 LEGACY_FACILITIES_PATH = CACHE_DIR / "hospital_candidates.json"
+BUNDLED_FACILITIES_PATH = BASE_DIR / "data" / "cache" / "delhi_nct_hospital_candidates.json"
+BUNDLED_LEGACY_FACILITIES_PATH = BASE_DIR / "data" / "cache" / "hospital_candidates.json"
 
-DATA_DIR.mkdir(exist_ok=True)
-CACHE_DIR.mkdir(exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Area of interest: full National Capital Territory of Delhi (OSM geocoding).

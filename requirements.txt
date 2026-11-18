@@ -11,6 +11,7 @@ geopandas>=1.0
 scikit-learn>=1.4   # required by OSMnx for nearest-node search
 requests>=2.31
 python-dotenv>=1.0
+gunicorn>=23.0
 
 # Optional:
-# uvicorn / gunicorn  -> only if you deploy beyond a local laptop demo
+# A single Gunicorn worker is used so in-memory mission and traffic state is shared.

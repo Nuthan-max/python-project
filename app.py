@@ -538,7 +538,7 @@ def api_network():
 
 @app.get("/api/hospitals")
 def api_hospitals():
-    ensure_ready()
+    facility_manager.load()
     lat = request.args.get("lat", type=float)
     lng = request.args.get("lng", type=float)
     limit = request.args.get("limit", default=12, type=int)

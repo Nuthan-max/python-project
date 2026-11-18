@@ -196,6 +196,14 @@ The API demo script expects the app to already be running:
 python scripts\api_demo_test.py
 ```
 
+## Deploy the complete application
+
+This is a stateful Flask application, not a static site: it loads a Delhi road graph (about 261 MB in the current local cache), writes SQLite data, and keeps mission/traffic state and background work in a long-running process. Vercel's serverless deployment is not a suitable single-host target for the complete application. Use a Docker-capable Python host with a persistent volume instead.
+
+The repository includes a `Dockerfile` and startup script. Deploy the repository from GitHub using that Dockerfile, and attach a persistent volume mounted at `/app/runtime-data`. The first start downloads the road graph to that volume and can take several minutes; later restarts reuse it. Keep one Gunicorn worker so in-memory mission and traffic state is shared. The bundled hospital cache stays in the image and is used when the persistent cache is empty; a successful facility refresh writes its result to the persistent cache.
+
+Set `TOMTOM_API_KEY` as a private environment variable in the hosting provider's dashboard, then redeploy. Set `MAPTILER_API_KEY` there too if you want MapTiler tiles; that key is delivered to the browser as part of the tile URL, so use a MapTiler key restricted to your deployed domain. Never commit either key to GitHub. The local `.env` is ignored by Git and excluded from the Docker image, so deployment environment variables must be configured on the host. Without a TomTom key, live incidents are disabled and the interface reports simulated traffic. Once running, verify `/api/status` reports a ready engine and non-zero facility count; verify `/api/hospitals?lat=28.6139&lng=77.2090&clinics=0` returns hospital records.
+
 ## Configuration
 
 `config.py` contains the default Delhi map center, network settings, speed estimates, traffic multipliers, and cache paths. Optional integrations read environment variables from a local `.env` file:
@@ -205,6 +213,7 @@ python scripts\api_demo_test.py
 | `TOMTOM_API_KEY` | Enables optional TomTom traffic-incident polling. Without it, traffic remains simulated. |
 | `MAPTILER_API_KEY` | Enables MapTiler map tiles. OpenStreetMap tiles are used when no key is configured. |
 | `MAPTILER_STYLE_ID` | Optional MapTiler style identifier; defaults to `streets-v4`. |
+| `RESCUEROUTE_DATA_DIR` | Optional writable data directory for a hosted deployment. The Docker image sets this to `/app/runtime-data`; mount a persistent volume there. |
 
 Do not commit `.env` or paste API keys into source code or public issue reports.
 

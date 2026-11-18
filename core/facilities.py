@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import threading
 import time
 from typing import Any, Dict, List
 
@@ -42,39 +43,70 @@ class FacilityManager:
         self._facilities: List[Dict[str, Any]] = []
         self._availability: Dict[str, Dict[str, Any]] = {}
         self._last_refresh = 0.0
+        self._load_lock = threading.Lock()
+        self._loaded = False
 
     # ------------------------------------------------------------------
     def load(self, force: bool = False) -> List[Dict[str, Any]]:
-        if config.FACILITIES_PATH.exists() and not force:
-            data = json.loads(config.FACILITIES_PATH.read_text(encoding="utf-8"))
-            self._facilities = data.get("facilities", [])
-            self._last_refresh = data.get("fetched_at", 0.0)
-        elif ox is not None:
-            existing = self._load_legacy()
-            try:
-                downloaded = self._download()
-            except Exception as exc:
-                if not existing:
-                    raise
-                print(f"[facilities] Delhi-wide refresh failed; retaining "
-                      f"{len(existing)} cached Central Delhi facilities: {exc}")
-                self._facilities = existing
+        with self._load_lock:
+            if self._loaded and not force:
+                return self._facilities
+
+            cache_paths = (
+                config.FACILITIES_PATH,
+                config.LEGACY_FACILITIES_PATH,
+                config.BUNDLED_FACILITIES_PATH,
+                config.BUNDLED_LEGACY_FACILITIES_PATH,
+            )
+            if not force and self._load_cached(cache_paths):
+                pass
+            elif ox is not None:
+                existing = self._facilities_from_cache(cache_paths)
+                try:
+                    downloaded = self._download()
+                except Exception as exc:
+                    if not existing:
+                        raise
+                    print(f"[facilities] Delhi-wide refresh failed; retaining "
+                          f"{len(existing)} cached Central Delhi facilities: {exc}")
+                    self._facilities = existing
+                else:
+                    self._facilities = self._merge_facilities(existing, downloaded)
+                    self._last_refresh = time.time()
+                    config.FACILITIES_PATH.write_text(json.dumps({
+                        "fetched_at": self._last_refresh,
+                        "area": config.AREA_NAME,
+                        "source": "OpenStreetMap (amenity=hospital/clinic/doctors)",
+                        "retained_existing_count": len(existing),
+                        "facilities": self._facilities,
+                    }, indent=2), encoding="utf-8")
+            elif self._load_cached(cache_paths):
+                pass
             else:
-                self._facilities = self._merge_facilities(existing, downloaded)
-                self._last_refresh = time.time()
-                config.FACILITIES_PATH.write_text(json.dumps({
-                    "fetched_at": self._last_refresh,
-                    "area": config.AREA_NAME,
-                    "source": "OpenStreetMap (amenity=hospital/clinic/doctors)",
-                    "retained_existing_count": len(existing),
-                    "facilities": self._facilities,
-                }, indent=2), encoding="utf-8")
-        elif config.LEGACY_FACILITIES_PATH.exists():
-            self._facilities = self._load_legacy()
-        else:
-            self._facilities = []
-        self._ensure_availability()
-        return self._facilities
+                self._facilities = []
+
+            self._ensure_availability()
+            self._loaded = True
+            return self._facilities
+
+    def _load_cached(self, paths) -> bool:
+        for path in paths:
+            if path.exists():
+                data = json.loads(path.read_text(encoding="utf-8"))
+                self._facilities = data.get("facilities", [])
+                self._last_refresh = data.get("fetched_at", 0.0)
+                return True
+        return False
+
+    @staticmethod
+    def _facilities_from_cache(paths) -> List[Dict[str, Any]]:
+        for path in paths:
+            if path.exists():
+                data = json.loads(path.read_text(encoding="utf-8"))
+                facilities = data.get("facilities", [])
+                if facilities:
+                    return facilities
+        return []
 
     def _load_legacy(self) -> List[Dict[str, Any]]:
         if not config.LEGACY_FACILITIES_PATH.exists():
