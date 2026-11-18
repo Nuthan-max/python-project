@@ -310,11 +310,13 @@ body[data-basemap="dark"][data-map-source="osm"] .leaflet-tile-pane {
   border-color: var(--border-subtle);
   background: #FFFFFF;
 }
-#chip-gps,
 #chip-network,
 #chip-missions,
 #chip-incidents {
   display: none;
+}
+#chip-gps {
+  display: inline-flex !important;
 }
 @media (max-width: 1080px) {
   #chip-live-feed { display: none; }
@@ -1002,6 +1004,107 @@ body[data-basemap="dark"][data-map-source="osm"] .leaflet-tile-pane {
 }
 .live-mission-card .kpi-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* ---------------- 5b. Live GPS GNSS Tracker Telemetry Box ---------------- */
+.gps-telemetry-hud {
+  background: rgba(8, 14, 28, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+.gps-hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.gps-hud-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.gps-hud-title b {
+  color: #38bdf8;
+  font-weight: 600;
+}
+.badge-fix {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.gps-hud-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.gps-hud-cell {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 5px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.gps-hud-cell .k {
+  font-size: 8.5px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.gps-hud-cell .v {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #f1f5f9;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gps-nmea-drawer {
+  margin-top: 2px;
+}
+.gps-nmea-drawer summary {
+  font-size: 10px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+.gps-nmea-drawer summary code {
+  color: #38bdf8;
+  font-size: 9.5px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.nmea-terminal-text {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #040711;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #34d399;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  word-break: break-all;
+  white-space: pre-wrap;
+  max-height: 90px;
+  overflow-y: auto;
 }
 #perf-grid {
   grid-template-columns: repeat(4, 1fr);

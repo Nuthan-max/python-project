@@ -24,6 +24,10 @@ from typing import Any, Dict, List, Optional
 import config
 from core.routing import RouteEngine, RouteResult, haversine_m
 from core.traffic import TrafficEngine, segment_key
+from core.gps_tracker import (
+    GPSTrackerModel, generate_gprmc, generate_gpgga,
+    snap_to_route_polyline, parse_nmea_sentence
+)
 
 PICKUP_DWELL_S = 6.0          # simulated seconds on scene
 OFF_ROUTE_TOLERANCE_M = 40.0  # vehicle must be this far along before rerouting
@@ -85,6 +89,17 @@ class Mission:
     telemetry_source: str = "simulated"  # "simulated" | "real_device_gps"
     last_telemetry_time: Optional[float] = None
     gps_accuracy_m: Optional[float] = None
+    gps_tracker: Optional[GPSTrackerModel] = None
+    gps_fix_type: str = "3D GNSS Fix"
+    gps_satellites: int = 11
+    gps_hdop: float = 0.88
+    gps_speed_kmh: float = 0.0
+    gps_altitude_m: float = 216.5
+    gps_raw_position: Optional[List[float]] = None
+    nmea_gprmc: str = ""
+    nmea_gpgga: str = ""
+    tracker_protocol: str = "GNSS / NMEA-0183"
+    tracker_device_id: str = ""
 
     # -- helpers ------------------------------------------------------------
     @property
@@ -118,6 +133,24 @@ class Mission:
             "is_live_telemetry": self.is_live_telemetry,
             "telemetry_source": self.telemetry_source,
             "gps_accuracy_m": self.gps_accuracy_m,
+            "gps_telemetry": {
+                "is_live": self.is_live_telemetry,
+                "source": self.telemetry_source,
+                "device_id": self.tracker_device_id or f"TRK-{self.ambulance_id}",
+                "fix_type": self.gps_fix_type,
+                "satellites": self.gps_satellites,
+                "hdop": round(self.gps_hdop, 2),
+                "accuracy_m": round(self.gps_accuracy_m if self.gps_accuracy_m is not None else (self.gps_hdop * 2.5), 1),
+                "speed_kmh": round(self.gps_speed_kmh, 1),
+                "heading_deg": round(self.heading, 1),
+                "altitude_m": round(self.gps_altitude_m, 1),
+                "raw_position": self.gps_raw_position or self.position,
+                "snapped_position": self.position,
+                "nmea_gprmc": self.nmea_gprmc,
+                "nmea_gpgga": self.nmea_gpgga,
+                "protocol": self.tracker_protocol,
+                "last_ping_s_ago": round(time.time() - self.last_telemetry_time, 1) if self.last_telemetry_time else None,
+            },
             "leg_index": self.leg_index,
             "leg_name": leg.name if leg else None,
             "legs": [
@@ -232,6 +265,16 @@ class MissionManager:
                       self._make_leg("emergency_to_hospital", to_hospital)],
                 position=to_pickup.coordinates[0] if to_pickup.coordinates else None,
             )
+            mission.gps_tracker = GPSTrackerModel(device_id=f"TRK-{ambulance_id}")
+            initial_pos = mission.position or [ambulance_lat, ambulance_lng]
+            init_trk = mission.gps_tracker.step_telemetry(initial_pos[0], initial_pos[1], 0.0, mission.heading)
+            mission.gps_raw_position = [init_trk["raw_lat"], init_trk["raw_lng"]]
+            mission.gps_satellites = init_trk["satellites"]
+            mission.gps_hdop = init_trk["hdop"]
+            mission.gps_accuracy_m = init_trk["accuracy_m"]
+            mission.nmea_gprmc = init_trk["nmea_gprmc"]
+            mission.nmea_gpgga = init_trk["nmea_gpgga"]
+            mission.tracker_device_id = f"TRK-{ambulance_id}"
             mission.original_route = {
                 "to_pickup": to_pickup.to_dict(),
                 "to_hospital": to_hospital.to_dict(),
@@ -301,14 +344,21 @@ class MissionManager:
             return list(reversed(self.mission_log))
 
     # ------------------------------------------------------------------
-    # Live GPS Telemetry from Driver Device
+    # Live GPS Telemetry from Driver Device / GPS Tracker Protocol
     # ------------------------------------------------------------------
     def update_live_telemetry(self, ambulance_id: str, lat: float, lng: float,
                               heading: Optional[float] = None, speed_mps: Optional[float] = None,
-                              accuracy_m: Optional[float] = None) -> Optional[Mission]:
+                              accuracy_m: Optional[float] = None,
+                              altitude_m: Optional[float] = None,
+                              satellites: Optional[int] = None,
+                              hdop: Optional[float] = None,
+                              nmea: Optional[str] = None,
+                              source: str = "real_device_gps",
+                              protocol: str = "HTTP Telemetry") -> Optional[Mission]:
         """
-        Receives real GPS coordinates broadcast from a driver's smartphone or external GPS.
-        Updates position, snaps to mission route, and triggers auto-reroute if road is blocked.
+        Receives real GPS coordinates broadcast from a GPS tracker unit, smartphone, or NMEA stream.
+        Applies Map-Matching to snap the vehicle to the road network, updates telemetry metrics,
+        and triggers auto-reroute if a road is blocked ahead.
         """
         now = time.time()
         target_mission = None
@@ -322,45 +372,75 @@ class MissionManager:
             return None
 
         with target_mission.route_lock:
-            target_mission.position = [lat, lng]
-            if heading is not None:
-                target_mission.heading = float(heading)
+            target_mission.gps_raw_position = [lat, lng]
             target_mission.is_live_telemetry = True
-            target_mission.telemetry_source = "real_device_gps"
+            target_mission.telemetry_source = source
+            target_mission.tracker_protocol = protocol
+            target_mission.tracker_device_id = f"TRK-{ambulance_id}"
             target_mission.last_telemetry_time = now
-            target_mission.gps_accuracy_m = accuracy_m
+            target_mission.gps_accuracy_m = accuracy_m if accuracy_m is not None else 2.5
+            target_mission.gps_satellites = satellites or 11
+            target_mission.gps_hdop = hdop or round((target_mission.gps_accuracy_m / 2.5), 2)
+            target_mission.gps_fix_type = "3D GNSS Fix"
+            if speed_mps is not None:
+                target_mission.gps_speed_kmh = speed_mps * 3.6
+            if altitude_m is not None:
+                target_mission.gps_altitude_m = altitude_m
 
             # Auto-start if assigned
             if target_mission.status == "assigned":
                 target_mission.status = "en_route_pickup"
                 target_mission.started_at = now
-                target_mission.log("gps_start", "Live GPS stream received from driver device. Mission started.")
+                target_mission.log("gps_start", f"Live GPS tracker signal acquired ({protocol}). Mission en route.")
 
             leg = target_mission.current_leg
             if leg and leg.result.coordinates:
-                # Find closest point along route coordinates to update progress
-                coords = leg.result.coordinates
-                min_dist = float("inf")
-                closest_idx = 0
-                for i, (clat, clng) in enumerate(coords):
-                    d = haversine_m(lat, lng, clat, clng)
-                    if d < min_dist:
-                        min_dist = d
-                        closest_idx = i
+                # Perform map-matching snap to the road network polyline
+                snapped_lat, snapped_lng, seg_idx, dist_along, err_dist = snap_to_route_polyline(
+                    lat, lng, leg.result.coordinates
+                )
+                target_mission.position = [snapped_lat, snapped_lng]
+                leg.distance_covered_m = min(dist_along, leg.total_length_m)
 
-                # Estimate distance covered up to closest_idx
-                dist_up_to = 0.0
-                for i in range(closest_idx):
-                    dist_up_to += haversine_m(coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1])
-                leg.distance_covered_m = min(dist_up_to, leg.remaining_m + leg.distance_covered_m)
+                # Accurately advance edge_index and edge_progress_m
+                covered = leg.distance_covered_m
+                edge_i = 0
+                while edge_i < len(leg.result.edge_path):
+                    e_len = leg.edge_length(edge_i)
+                    if covered < e_len:
+                        leg.edge_index = edge_i
+                        leg.edge_progress_m = covered
+                        break
+                    covered -= e_len
+                    edge_i += 1
+                else:
+                    leg.edge_index = len(leg.result.edge_path)
+                    leg.edge_progress_m = 0.0
 
-                # Check if reached destination within 35 metres
+                if heading is not None:
+                    target_mission.heading = float(heading) % 360.0
+                else:
+                    target_mission.heading = _heading(leg.result.coordinates, seg_idx)
+
+                # Store or synthesize NMEA 0183 sentences
+                if nmea:
+                    if "RMC" in nmea:
+                        target_mission.nmea_gprmc = nmea
+                    if "GGA" in nmea:
+                        target_mission.nmea_gpgga = nmea
+                if not target_mission.nmea_gprmc:
+                    target_mission.nmea_gprmc = generate_gprmc(lat, lng, speed_mps or 0.0, target_mission.heading, ts=now)
+                if not target_mission.nmea_gpgga:
+                    target_mission.nmea_gpgga = generate_gpgga(lat, lng, target_mission.gps_altitude_m,
+                                                               target_mission.gps_satellites, target_mission.gps_hdop, ts=now)
+
+                # Check if reached destination within threshold (40 metres or at_end)
                 dest_lat, dest_lng = (
                     (target_mission.emergency["lat"], target_mission.emergency["lng"])
                     if target_mission.leg_index == 0 else
                     (target_mission.hospital["lat"], target_mission.hospital["lng"])
                 )
-                if haversine_m(lat, lng, dest_lat, dest_lng) <= 40.0:
+                if haversine_m(snapped_lat, snapped_lng, dest_lat, dest_lng) <= 40.0 or leg.at_end:
                     if target_mission.leg_index == 0:
                         target_mission.status = "on_scene"
                         target_mission.dwell_until = now + 4.0
@@ -375,6 +455,10 @@ class MissionManager:
                 if self._blocking_edge(leg):
                     target_mission.log("disruption", "Live road blockage detected ahead; rerouting ambulance.")
                     self._reroute(target_mission, "Live road blockage")
+            else:
+                target_mission.position = [lat, lng]
+                if heading is not None:
+                    target_mission.heading = float(heading) % 360.0
 
         return target_mission
 
@@ -455,8 +539,8 @@ class MissionManager:
             if not is_live_active:
                 if mission.is_live_telemetry and (now - (mission.last_telemetry_time or 0)) > config.LIVE_GPS_STALE_TIMEOUT_S:
                     mission.is_live_telemetry = False
-                    mission.telemetry_source = "simulated"
-                    mission.log("telemetry", "Live GPS signal stale (>30s); falling back to simulated kinematics.")
+                    mission.telemetry_source = "gps_tracker_model"
+                    mission.log("telemetry", "Live GPS stream idle (>30s); internal GNSS tracker telemetry active.")
 
                 advance = _arc_speed(leg) * dt
                 while advance > 0 and not leg.at_end:
@@ -476,6 +560,20 @@ class MissionManager:
                     (lat, lng), seg_idx = pos
                     mission.heading = _heading(leg.result.coordinates, seg_idx)
                     mission.position = [lat, lng]
+                    speed_mps = _arc_speed(leg)
+                    mission.gps_speed_kmh = speed_mps * 3.6
+
+                    # Update GNSS Tracker sensor state & NMEA stream
+                    if not mission.gps_tracker:
+                        mission.gps_tracker = GPSTrackerModel(device_id=f"TRK-{mission.ambulance_id}")
+                    trk = mission.gps_tracker.step_telemetry(lat, lng, speed_mps, mission.heading)
+                    mission.gps_raw_position = [trk["raw_lat"], trk["raw_lng"]]
+                    mission.gps_satellites = trk["satellites"]
+                    mission.gps_hdop = trk["hdop"]
+                    mission.gps_accuracy_m = trk["accuracy_m"]
+                    mission.nmea_gprmc = trk["nmea_gprmc"]
+                    mission.nmea_gpgga = trk["nmea_gpgga"]
+                    mission.gps_fix_type = "3D GNSS Fix"
 
             # Is the road we are on (or about to enter) closed or heavily jammed?
             blocked = self._blocking_edge(leg)

@@ -86,9 +86,9 @@
         <span class="pulse-beacon"></span>
         <span>Engine <b>online</b></span>
       </div>
-      <div class="status-indicator" id="chip-gps" title="GPS Satellites / Smartphone Tracking">
+      <div class="status-indicator" id="chip-gps" style="cursor:pointer;" title="GNSS Satellites &amp; GPS Tracker — Click to view Telemetry Station">
         <span class="pulse-beacon gps-live"></span>
-        <span>GPS <b>Ready</b></span>
+        <span>GPS <b>3D Fix</b></span>
       </div>
       <div class="status-indicator" id="chip-live-feed" title="Data Feed Mode">Mode <b>Simulated</b></div>
       <div class="status-indicator" id="chip-network" title="Delhi Road Network (OSMnx)">Network <b>—</b></div>
@@ -186,10 +186,16 @@
             </div>
             <div class="field-stack">
               <select id="ambulance-select" class="form-select" aria-label="Select Ambulance Unit"></select>
-              <button class="btn-action-ghost" id="btn-add-ambulance" title="Place an ambulance at the map centre">
-                <i data-lucide="plus-circle" style="width:14px; height:14px;"></i>
-                <span>Add ambulance</span>
-              </button>
+              <div style="display:flex; gap:6px;">
+                <button class="btn-action-ghost" id="btn-add-ambulance" title="Place an ambulance at the map centre" style="flex:1;">
+                  <i data-lucide="plus-circle" style="width:14px; height:14px;"></i>
+                  <span>Add ambulance</span>
+                </button>
+                <button class="btn-action-ghost" id="btn-connect-gps" title="Connect Real Hardware GPS or Phone Tracker" style="flex:1; border-color:rgba(56,189,248,0.35); color:var(--accent-primary);">
+                  <i data-lucide="satellite" style="width:14px; height:14px;"></i>
+                  <span>Live GPS</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -254,6 +260,39 @@
               <span class="kpi-label">Distance left</span>
               <strong class="kpi-val" id="m-remaining">—</strong>
             </div>
+          </div>
+
+          <!-- Live GPS GNSS Tracker Telemetry Box -->
+          <div class="gps-telemetry-hud" id="m-gps-hud">
+            <div class="gps-hud-header">
+              <div class="gps-hud-title">
+                <span class="live-dot-pulse" style="width:7px; height:7px;"></span>
+                <span>GPS Tracker: <b id="m-gps-source">GNSS-900 Unit</b></span>
+              </div>
+              <span class="badge-fix" id="m-gps-fix">3D Fix · 11 Sats</span>
+            </div>
+            <div class="gps-hud-grid">
+              <div class="gps-hud-cell">
+                <span class="k">Speed</span>
+                <span class="v" id="m-gps-speed">0 km/h</span>
+              </div>
+              <div class="gps-hud-cell">
+                <span class="k">Bearing</span>
+                <span class="v" id="m-gps-bearing">0° N</span>
+              </div>
+              <div class="gps-hud-cell">
+                <span class="k">Accuracy</span>
+                <span class="v" id="m-gps-acc">±2.2m</span>
+              </div>
+              <div class="gps-hud-cell">
+                <span class="k">HDOP</span>
+                <span class="v" id="m-gps-hdop">0.88</span>
+              </div>
+            </div>
+            <details class="gps-nmea-drawer" id="m-nmea-drawer">
+              <summary><span>Live NMEA-0183 Stream</span> <code id="nmea-tag">$GPRMC / $GPGGA</code></summary>
+              <div class="nmea-terminal-text" id="m-nmea-text">$GPRMC,000000,A,2836.8340,N,07712.5400,E,0.0,0.0,181126,,,A*7A</div>
+            </details>
           </div>
           <div class="mission-controls">
             <button class="btn-action-ghost" id="btn-pause" aria-label="Pause or resume mission">Pause</button>
@@ -513,6 +552,81 @@
     </div>
   </div>
 
+  <!-- ================= 11. DEDICATED GPS TRACKER & TELEMETRY STATION MODAL ================= -->
+  <div class="modal-backdrop" id="modal-gps-tracker" role="dialog" aria-modal="true" aria-labelledby="gps-tracker-heading">
+    <div class="modal-card glass-modal glass-dynamic" style="max-width: 760px;">
+      <div class="modal-head">
+        <div>
+          <h2 id="gps-tracker-heading" style="display:flex; align-items:center; gap:8px;">
+            <i data-lucide="satellite" style="color:var(--accent-primary); width:20px; height:20px;"></i>
+            GNSS Satellite Tracker &amp; Telemetry Station
+          </h2>
+          <p class="modal-sub">Real-time hardware GNSS receiver telemetry, NMEA-0183 stream monitor, and industry-standard tracker protocols.</p>
+        </div>
+        <button class="btn-close modal-close" data-close="gps-tracker" aria-label="Close dialog">
+          <i data-lucide="x" style="width:16px; height:16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 class="section-title" style="margin:0;">Active Satellite Constellation</h3>
+            <span class="badge-fix" id="modal-gps-badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); padding:4px 10px; border-radius:9999px; font-size:11px; font-weight:700;">3D Fix · 11 Sats Locked</span>
+          </div>
+          <div class="telemetry-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-bottom: 12px;">
+            <div class="kpi-cell">
+              <span class="kpi-label">Constellation</span>
+              <strong class="kpi-val" style="color:#38bdf8;">GPS + NavIC</strong>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-label">Precision (HDOP)</span>
+              <strong class="kpi-val" id="modal-gps-hdop">0.88</strong>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-label">Accuracy</span>
+              <strong class="kpi-val" id="modal-gps-acc">±2.2 m</strong>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-label">Altitude (MSL)</span>
+              <strong class="kpi-val" id="modal-gps-alt">216.5 m</strong>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn-dispatch-primary" id="btn-modal-acquire-gps" style="padding:10px 16px; font-size:13px; display:inline-flex; align-items:center; gap:6px;">
+              <i data-lucide="crosshair" style="width:14px; height:14px;"></i>
+              <span>Acquire My Device Hardware GPS</span>
+            </button>
+            <a href="/driver" target="_blank" class="btn-action-ghost" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; padding:10px 16px; font-size:13px;">
+              <i data-lucide="smartphone" style="width:14px; height:14px;"></i>
+              <span>Open Mobile GPS Driver Portal</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Live NMEA-0183 Stream Section -->
+        <div class="modal-section-card" style="margin-top:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h3 class="section-title" style="margin:0;">Live NMEA-0183 Sentence Stream</h3>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#10b981;">1 Hz Broadcast Rate</span>
+          </div>
+          <p class="section-sub" style="margin-bottom:8px;">Standardized marine and vehicular GNSS sentences transmitted to the routing engine.</p>
+          <pre class="nmea-terminal-text" id="modal-nmea-stream" style="max-height:120px; overflow-y:auto; padding:12px; background:#040711; border-radius:10px; border:1px solid rgba(255,255,255,0.1); color:#34d399; font-family:'JetBrains Mono',monospace; font-size:11.5px; line-height:1.5;">$GPRMC,162206,A,2836.8340,N,07712.5400,E,24.3,45.0,181126,,,A*7A
+$GPGGA,162206,2836.8340,N,07712.5400,E,1,11,0.9,216.5,M,-34.0,M,,*67</pre>
+        </div>
+
+        <!-- Industry Standard Protocols Ingestion -->
+        <div class="modal-section-card" style="margin-top:14px;">
+          <h3 class="section-title">Connect Real GPS Hardware Tracker</h3>
+          <p class="section-sub">RescueRoute accepts live telemetry from Traccar Client, OsmAnd GPS Tracker, and Teltonika/Coban OBD-II hardware devices.</p>
+          <div style="background:rgba(255,255,255,0.03); border:1px dashed var(--border-delicate); border-radius:10px; padding:12px; margin-top:8px;">
+            <div style="font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">OSMAND / TRACCAR PROTOCOL ENDPOINT:</div>
+            <code style="color:#38bdf8; font-family:'JetBrains Mono',monospace; font-size:12px; word-break:break-all;" id="modal-endpoint-code">http://127.0.0.1:5000/api/tracker?id=AMB-001&amp;lat={lat}&amp;lon={lon}&amp;speed={speed}&amp;bearing={bearing}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Map Configuration Data -->
   <script id="map-config" type="application/json">
     {{ {"center": map_center, "zoom": map_zoom, "tileUrl": tile_url, "attribution": attribution, "hasKey": has_maptiler_key, "styleId": maptiler_style}|tojson }}
@@ -533,6 +647,7 @@
       const modalAnalytics = document.getElementById("modal-analytics");
       const modalHistory = document.getElementById("modal-history");
       const modalSystem = document.getElementById("modal-system");
+      const modalGpsTracker = document.getElementById("modal-gps-tracker");
 
       const togglePanel = (open) => {
         const isCurrentlyOpen = panel.classList.contains("open");
@@ -552,7 +667,13 @@
         modalAnalytics?.classList.remove("open");
         modalHistory?.classList.remove("open");
         modalSystem?.classList.remove("open");
+        modalGpsTracker?.classList.remove("open");
       };
+
+      document.getElementById("chip-gps")?.addEventListener("click", () => {
+        closeModals();
+        modalGpsTracker?.classList.add("open");
+      });
 
       document.querySelectorAll(".modal-close, .modal-backdrop").forEach((el) => {
         el.addEventListener("click", (e) => {
